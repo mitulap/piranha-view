@@ -9,8 +9,7 @@ var schema = new Schema({
 	beingUsedBy : [{
 		timeSlotId : {type:String},
 		start_time : {type: Date},
-		end_time : {type: Date},
-		usedCapacity: {type:Number, default: 0}
+		end_time : {type: Date}
 	}]
 }, { strict : false});
 

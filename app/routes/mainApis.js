@@ -151,8 +151,7 @@ module.exports = function(app){
 											var beingUsedByObj = {
 												timeSlotId : doc.id,
 												start_time : date,
-												end_time : endDate,
-												usedCapacity: parseInt(req.body.booking.size)
+												end_time : endDate
 											};
 
 											//singleBoat[i].beingUsedBy.push(beingUsedByObj);
@@ -215,8 +214,7 @@ module.exports = function(app){
 													var beingUsedByObj = {
 														timeSlotId : doc.id,
 														start_time : date,
-														end_time : endDate,
-														usedCapacity: parseInt(req.body.booking.size)
+														end_time : endDate
 													};
 
 													
