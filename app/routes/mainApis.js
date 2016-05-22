@@ -10,6 +10,7 @@ var boat = require('../models/boatModel'); //to use boats schema
 var errorResponse = require('./errorResponse');
 var async = require('async');
 var url = require('url');
+var utilFunc = require('./utilFunc');
 
 var flagVar = false;
 var globalVersion;
@@ -51,7 +52,7 @@ module.exports = function(app){
 			    //Getting boat data
 		    boat.findOne({id : req.body.assignment.boat_id}, function(err, boatDoc){
 
-		    		var lengthOftheResult = isBoatBeingUsedForTheSameTimeInterval(doc.start_time, doc.duration, boatDoc);
+		    		var lengthOftheResult = utilFunc.isBoatBeingUsedForTheSameTimeInterval(doc.start_time, doc.duration, boatDoc);
 
 		    		//creating a doc for adding a new boat in timeSlot
 				    var boatDetailsData = {
@@ -61,7 +62,7 @@ module.exports = function(app){
 				    	usedSeats : 0
 				    }
 
-
+				    //If the boat is being used for the same time interval in other timeSlot then no need to update timeSlot Availability.
 		    		if(lengthOftheResult > 0){
 		    			//do nothing
 		    		}else{
@@ -69,7 +70,7 @@ module.exports = function(app){
 			    			doc.availability = boatDoc.capacity;
 			    		}
 		    		}
-		    		
+		    	//Sacing the timeSlot and sending empty response to the client.
 		    	doc.boatsDetails.push(boatDetailsData);
 		    	doc.save();
 		    	return res.status(200).json({});
@@ -92,6 +93,10 @@ module.exports = function(app){
 				Output:
 					none
 			*/
+
+
+			//This code is in following sections
+
 
 			timeSlot.findOne({ id: req.body.booking.timeslot_id }, function (err, doc){
 				//If booking size is greater than available count for the timeSlot then return error
@@ -124,16 +129,20 @@ module.exports = function(app){
 
 						var usedBoatId;//boat which is recently being updated for this timeSlot
 
+
+						// Finding boats which are assigned for the current timeSlot to book tickets for customers.
 						boat.find({id: {$in: boatIds}}, function(err, singleBoat){
 							// getting data for all boats which are being used by this timeSlot
 
+
+							// Looping through all the boats
 							for(var i = 0; i < singleBoat.length; i++){
 
-								var usedBoatCapacity = getUsedCapacityForThisBoat(doc.boatsDetails, singleBoat[i].id);
+								var usedBoatCapacity = utilFunc.getUsedCapacityForThisBoat(doc.boatsDetails, singleBoat[i].id);
 								console.log("---------------------");
 								console.log(usedBoatCapacity);
 
-
+								// If the boat is not being used in any other time slots
 								if(singleBoat[i].beingUsedBy.length == 0){
 								//boat is not being used in any of the timeSlot
 								// In this case we can skip the step of checking overlapping timeslot as no other time slot is using this boat
@@ -143,27 +152,18 @@ module.exports = function(app){
 
 										if(boatAssigned != true){
 
-
 											var date = new Date(doc.start_time);
 											var endDate = new Date(date.getTime() + (doc.duration * 60000));
-											// var newDateObj = new Date(oldDateObj.getTime() + diff*60000);
 
+
+											// creating beingUsedBy object to enter in the database for boats.
 											var beingUsedByObj = {
 												timeSlotId : doc.id,
 												start_time : date,
 												end_time : endDate
 											};
-
-											//singleBoat[i].beingUsedBy.push(beingUsedByObj);
 											
-											//now updating data for timeSlot
-											var usedBoatObj = {
-												boat_id: singleBoat[i].id,
-												seats : parseInt(req.body.booking.size)
-											}
-
-
-											// getting index for the boat is timeslot to update boatsDetails for that boat
+											// getting index for the boat in timeslot to update boatsDetails for the boat
 											var index;
 											for(var z = 0; z < doc.boatsDetails.length; z++) {
 											   if(doc.boatsDetails[z].id === singleBoat[i].id) {
@@ -172,58 +172,59 @@ module.exports = function(app){
 											   }
 											}
 
+											//updating detila on document for timeSlot and later we will save this.
 											doc.boatsDetails[index].isBeingUsed = true;
 											doc.boatsDetails[index].usedSeats = doc.boatsDetails[index].usedSeats + parseInt(req.body.booking.size);
 
+											// Pushing new object in order to add details for new timeSlot details for the boat
 											singleBoat[i].beingUsedBy.push(beingUsedByObj);
 
-											//setting id for used boat in order to update references for the time slot
+											//setting id for used boat in order to update references for other timeSlots at a later stage
 											usedBoatId = singleBoat[i].id;
 
+
+											// pushing remaining capacity for the current timeSlot for the current boat to calculate maximum remaning availability at a later stage.
 											remainingCapacities.push((singleBoat[i].capacity - parseInt(req.body.booking.size)));
 											singleBoat[i].markModified(singleBoat[i].beingUsedBy);
 											
 											doc.markModified(doc.boatsDetails);
 
+											//Setting this flag to be true so that in other boat's details we will not update capacity details.
 											boatAssigned = true;
 										} else {
+
+											//if boat is already assigened then only push
+											// remaining capacity for the current timeSlot for the current boat to calculate maximum availability after this booking.
 											remainingCapacities.push((singleBoat[i].capacity - (usedBoatCapacity)));
 										}
 									} else {
+
+										// if boat can not hanlde the cooking capacity then add it's remaning capacity for 
+										// the current timeSlot in an array to get max availability after this booking
 										remainingCapacities.push(singleBoat[i].capacity - usedBoatCapacity);
 									}
 
 								} else {
 
-										var lengthOfOverLappingTimeSlots = isBoatBeingUsedForTheSameTimeInterval(doc.start_time, doc.duration, singleBoat[i]);
+										// Now boat is being used by other timeSlots.
+
+										// Check if the boat is currently being used by any overlapping timeSlots
+										var lengthOfOverLappingTimeSlots = utilFunc.isBoatBeingUsedForTheSameTimeInterval(doc.start_time, doc.duration, singleBoat[i]);
 
 										if(lengthOfOverLappingTimeSlots == 0){
 											//if it is not being used in the certain time interval. Then it is free to be used by any time interval
 											
 											boatCapacity = singleBoat[i].capacity;
 
+											// check if the boat can hanlde booking size.
 											if((boatCapacity- usedBoatCapacity) >= parseInt(req.body.booking.size)) {
 
 												//This boat can handle new booking of the given size
+												// If any previous assignment is not done then add the booking
 												if(boatAssigned != true){
 
-													var date = new Date(doc.start_time);
-													var endDate = new Date(date.getTime() + (doc.duration * 60000));
-													// var newDateObj = new Date(oldDateObj.getTime() + diff*60000);
 
-													var beingUsedByObj = {
-														timeSlotId : doc.id,
-														start_time : date,
-														end_time : endDate
-													};
-
-													
-													
-													//now updating data for timeSlot
-													var usedBoatObj = {
-														boat_id: singleBoat[i].id,
-														seats : parseInt(req.body.booking.size)
-													}
+													// getting index of the boat in the timeSlot
 													var index;
 
 													for(var z = 0; z < doc.boatsDetails.length; z++) {
@@ -233,12 +234,14 @@ module.exports = function(app){
 													   }
 													}
 
+													// getting usedBoatExisits for this timeSlot
 													usedBoatExists = doc.boatsDetails.filter(function(data){
 														return ((data.id === singleBoat[i].id) && (data.isBeingUsed == true));
 													});
 													
+													// If it is exists then update value accordingly and if it is not then update details accordingly.
 													if(usedBoatExists.length > 0){
-
+														// updating usedSeats and isBeingUsed is already set.
 														if(doc.boatsDetails[index].usedSeats == singleBoat[i].capacity){
 															doc.boatsDetails[index].usedSeats = singleBoat[i].capacity;
 														} else {
@@ -247,18 +250,22 @@ module.exports = function(app){
 
 														//doc.boatsDetails[index].usedSeats = doc.boatsDetails[index].usedSeats + parseInt(req.body.booking.size);
 													}else{
-														
+														// setting isBeingUsed true and usedSeats timeSlot
 														doc.boatsDetails[index].isBeingUsed = true;
 														doc.boatsDetails[index].usedSeats =  doc.boatsDetails[index].usedSeats + parseInt(req.body.booking.size);	
-													}
 
-													//checking if the beignUsed by contains the id of current time slot
-													timeSlotExists = singleBoat[i].beingUsedBy.filter(function(data){
-														return (data.timeSlotId == doc.id);
-													});
-													if(timeSlotExists.length > 0){
+														// adding beingUsedBy for the boat
+														var date = new Date(doc.start_time);
+														var endDate = new Date(date.getTime() + (doc.duration * 60000));
+														
 
-													}else{
+														// Creating a beingUsedBy object to add if this boat does not have this timeSlot in it
+														var beingUsedByObj = {
+															timeSlotId : doc.id,
+															start_time : date,
+															end_time : endDate
+														};
+
 														singleBoat[i].beingUsedBy.push(beingUsedByObj);
 													}
 													
@@ -268,18 +275,21 @@ module.exports = function(app){
 													// Removing extra size from the request becuase it is recently added in the timeslot and 
 													// usedBoatCapacity is not updated.
 
+													// adding into remainingCapacities to calculate max availability for this timeSlot
 													remainingCapacities.push(singleBoat[i].capacity - (usedBoatCapacity + parseInt(req.body.booking.size)));
 												
 													boatAssigned = true;
 												} else {
+													// adding into remainingCapacities to calculate max availability for this timeSlot
 													remainingCapacities.push(singleBoat[i].capacity - usedBoatCapacity);
 												}
 											} else {
+												// adding into remainingCapacities to calculate max availability for this timeSlot
 												remainingCapacities.push(boatCapacity - usedBoatCapacity);
 											}
 										} else {
 
-											//check whether the op cotains id of the current timeSlot
+											// We will not add the boat's remaining capacity as it will not be counted for the current timeSlot.
 										}
 								}
 
@@ -288,11 +298,11 @@ module.exports = function(app){
 
 							}
 
-							//if it is not null then update references in other timeslots in order to updated their availability.
-							//updating customer count and availability
+							//if usedBoatId is not null then update references in other timeslots in order to updated their availability.
 
 							if(usedBoatId != null){
 
+								//updating customer count and availability
 								var newCustomerCount = parseInt(doc.customer_count) + parseInt(req.body.booking.size);
 								doc.customer_count = newCustomerCount;
 								var maxAvail = 0;
@@ -302,10 +312,12 @@ module.exports = function(app){
 									}
 								}
 
-
+								// assigning null array to remainingCapacities and setting maxAvailability to the timeSlot
 								remainingCapacities = [];
 								doc.availability = maxAvail;
 
+
+								//Checking other timeSlots which are using the boat with usedBoatId for availability and updating theier availability.
 
 								// searching on dates which are 10 hours plus and minus so that we can consider potential overlapping sessions
 								// of the boat and we can update availability of overlapping timeslot while considering overlapping timeslot
@@ -315,36 +327,39 @@ module.exports = function(app){
 								var docStartDate = new Date(tempDate.getTime() - (10 * 60 * 60000));
 								var docEndDate = new Date(tempDate.getTime() + ((doc.duration + (10 * 60)) * 60000));
 
-								//finding time slot which are overlapping and contains boat which is being used by the current time slot
+								//finding time slot which falls in the above date range to update for availability
 								timeSlot.find({$or: [{start_time : {"$gt": docStartDate, "$lt": docEndDate}}, {end_time : {"$gt": docStartDate, "$lt": docEndDate}}]}, function(err, timeSlotsForUpdate) {
 									
 									//,"boatsDetails.id" : {$in: [usedBoatId]}
 									// id: { $ne: doc.id }, 
 									//$or: [{start_time : {"$gt": docStartDate, "$lt": docEndDate}}, {end_time : {"$gt": docStartDate, "$lt": docEndDate}}]
-									console.log(timeSlotsForUpdate);
+									//console.log(timeSlotsForUpdate);
 
 									var tsStartDate = new Date(doc.start_time);
 									var tsEndDate = new Date(tsStartDate.getTime() + (doc.duration * 60000));
 
+									// Here calling util function to get the newAvailability in order to update.
 									for(var incr = 0; incr < timeSlotsForUpdate.length; incr++){
 
+										// Condition to check overlapping timeSlots for the current timeSlot.
 										if(( ( (timeSlotsForUpdate[incr].start_time > tsStartDate) && (timeSlotsForUpdate[incr].start_time < tsEndDate) ) || 
 											( (timeSlotsForUpdate[incr].end_time > tsStartDate) && (timeSlotsForUpdate[incr].end_time < tsEndDate)) ||
 											( ((tsStartDate > timeSlotsForUpdate[incr].start_time) && (tsStartDate < timeSlotsForUpdate[incr].end_time)) || 
 											  ((tsEndDate > timeSlotsForUpdate[incr].start_time) && (tsEndDate < timeSlotsForUpdate[incr].end_time)) ))){
 
-											var newAvailability = getUpdatedAvailability(timeSlotsForUpdate[incr] ,usedBoatId, timeSlotsForUpdate);
+											var newAvailability = utilFunc.getUpdatedAvailability(timeSlotsForUpdate[incr] ,usedBoatId, timeSlotsForUpdate);
 											timeSlotsForUpdate[incr].availability = newAvailability;
 											timeSlotsForUpdate[incr].save();
-
-										}
-										
+										}	
 									}
 
+									// saving document
 									doc.save();
 									return res.status(200).json({});
 								});
 							}else{
+
+								// saving document
 								doc.save();
 								return res.status(200).json({});
 							}
@@ -354,120 +369,4 @@ module.exports = function(app){
 
 			});
 	});
-}
-
-
-//checking whether the boat is being used for the overlapping time interval or not
-// Parametes 1) start_time - startTime of current timeSlot
-//			 2) duration - duration ( which will be needed to filter the data )
-//			 3) boatDocRes - boatDocument for which we have to check whether the overlapping timeSlots are present or not
-//				for which this boat is being used
-function isBoatBeingUsedForTheSameTimeInterval(start_time, duration, boatDocRes){
-
-	var startDate = new Date(start_time);
-	var endDate = new Date(startDate.getTime() + (duration * 60000));
-
-	op = boatDocRes.beingUsedBy.filter(function(data){
-
-		var dataStartTime = new Date(data.start_time);
-		var dataEndTime = new Date(data.end_time);
-
-		return ( (((startDate > dataStartTime) && (startDate < dataEndTime)) || ((endDate > dataStartTime) && (endDate < dataEndTime)) ) ||
-			    ( ((dataStartTime > startDate) && (dataStartTime < endDate)) || ((dataEndTime > startDate) && (dataEndTime < endDate)) ));
-	});
-
-	//Returning Length
-	return op.length;
-}
-
-//Get used capacity for the timeSlot for boatId
-// Parameters 1) tsBoatsDetails - details of boatsDetails for timeSlot
-// 			  2) boatId - boatId for the which used capacity needed for this timeSlot.
-function getUsedCapacityForThisBoat(tsBoatsDetails, boatId){
-
-	//filter data
-	boatDetailsForTimeSlot = tsBoatsDetails.filter(function(data){
-		return (data.id === boatId);
-	});
-
-	return boatDetailsForTimeSlot[0].usedSeats;
-
-}
-
-
-//Function which calculates mazimum availability for the given timeslot
-// Arguments  1) timeSlotData = given Time slot
-//			  2) boatId = boatId which was updated for the timeSlot
-//			  3) wholeTimeSlotData = time slot data for a certain time range.
-function getUpdatedAvailability(timeSlotData, boatId, wholeTimeSlotData) {
-	
-	var tsStartDate = new Date(timeSlotData.start_time);
-	var tsEndDate = new Date(timeSlotData.end_time);
-
-	//filtering data in order to check boat is being used in the other timeSlots or not and later we can update availability of timeslots accordingly.
-	var filteredTS = wholeTimeSlotData.filter(function(data){
-
-		var dataStartTime = new Date(data.start_time);
-		var dataEndTime = new Date(data.end_time);
-
-		return (( ((tsStartDate > dataStartTime) && (tsStartDate < dataEndTime)) || (( tsEndDate > dataStartTime) && ( tsEndDate < dataEndTime)) ) ||
-				((dataStartTime > tsStartDate) && (dataStartTime < tsEndDate)) || (( dataEndTime > tsStartDate) && ( dataEndTime < tsEndDate)));
-	});
-
-	// array to include all the fields for the remaining capacity 
-	var remainingAvailabilitiesForThisTimeSlot = [];
-	
-	var currentTimeSlotAvailability = timeSlotData.availability;
-
-	for(var i = 0; i < timeSlotData.boatsDetails.length; i++){
-		
-		//If the capacity of time slot's availability is more than the boat which is being used then no need to update it
-		if( timeSlotData.boatsDetails[i].id === boatId ){
-			if(currentTimeSlotAvailability > timeSlotData.boatsDetails[i].capacity){
-				continue;
-			} else {
-				remainingAvailabilitiesForThisTimeSlot.push(0);
-			}
-		} else {
-
-			var flagForMarkingUsedBoats = false;
-			//looping through filtered data to check the boat is being used in other timeSlot or not
-			for(var j = 0; j < filteredTS.length; j++){
-
-				for(var k =0 ; k < filteredTS[j].boatsDetails.length; k++){
-
-					if(filteredTS[j].boatsDetails[k].id === timeSlotData.boatsDetails[i].id){
-						if(filteredTS[j].boatsDetails[k].isBeingUsed){
-							flagForMarkingUsedBoats = true;
-							break;
-						}
-					}
-				}
-
-				if(flagForMarkingUsedBoats){
-					break;
-				}
-
-			}
-
-			//if boat is used in other time slot then we can not use it's capacity to show availability for the timeSlot
-			// Hence updaing accordingly in below condition
-			if(flagForMarkingUsedBoats){
-				remainingAvailabilitiesForThisTimeSlot.push(0);
-			} else {
-				remainingAvailabilitiesForThisTimeSlot.push(timeSlotData.boatsDetails[i].capacity - timeSlotData.boatsDetails[i].usedSeats);	
-			}
-			// remainingAvailabilitiesForThisTimeSlot.push(timeSlotData.boatsDetails[i].capacity - timeSlotData.boatsDetails[i].usedSeats);
-		}
-	}
-
-	//Getting maximun availability for the timeslot.
-	var maxAvail = 0;
-	for(var i = 0; i < remainingAvailabilitiesForThisTimeSlot.length; i++){
-		if( remainingAvailabilitiesForThisTimeSlot[i] > maxAvail ){
-			maxAvail = remainingAvailabilitiesForThisTimeSlot[i];
-		}
-	}
-
-	return maxAvail;
 }

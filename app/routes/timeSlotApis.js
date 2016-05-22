@@ -30,11 +30,6 @@ module.exports = function(app){
 				On a new timeslot, the availability and customer count will necessarily be 0, and the boats will be an empty list
 				Example: { id: abc123, start_time: 1406052000, duration: 120, availability: 0, customer_count: 0, boats: [] }
 		*/
-		
-		/*var startTime = new Date(req.body.timeslot.start_time) * 1000;
-		var endTime = new Date(startTime.getTime() + (req.body.timeslot.duration * 60000));
-		console.log("start time : " + startTime);
-		console.log("end time : " +  endTime);*/
 
 		var newTimeSlot = new timeSlot({
 			start_time : new Date(req.body.timeslot.start_time * 1000),
@@ -57,7 +52,7 @@ module.exports = function(app){
 		            return res.status(200).json({id:newTimeSlot.id, start_time: req.body.timeslot.start_time, duration: newTimeSlot.duration, availability: newTimeSlot.availability, customer_count: newTimeSlot.customer_count, boats:[]});
 		        });
 			}else{
-				return res.status(200).json({error:"TimeSlot is already exists. Please try different timeSlot"});
+				return res.status(200).json({error:"TimeSlot already exists. Please try different timeSlot"});
 			}
 
 		});

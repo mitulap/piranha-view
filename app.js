@@ -17,7 +17,6 @@ mongoose.connection.on('error', function (err) {
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json()); 
 app.use (function (error, req, res, next){
-    
     res.status(200).json({errMsg:"Invalid JSON Data"});
 });
 app.use(function(req, res, next) {
@@ -26,12 +25,6 @@ app.use(function(req, res, next) {
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, token");
   next();
 });
-
-//app.all(expressJWT({ secret: 'Ebay Shopping cart'}). unless({ path: ['/users/login']}));
-
-//require('./app/routes/product')(app);
-//require('./app/routes/user')(app);
-
 
 require('./app/routes/boatApis')(app);
 require('./app/routes/timeSlotApis')(app);
@@ -43,10 +36,10 @@ require('./app/routes/mainApis')(app);
   next(err);
 });*/
 
-app.post('*', function(req, res, next) {
+/*app.post('*', function(req, res, next) {
   var err = new Error();
   err.status = 404;
   next(err);
 });
-
+*/
 module.exports = app;
