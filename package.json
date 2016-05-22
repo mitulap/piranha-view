@@ -1,0 +1,18 @@
+{
+  "name": "PiranhaView",
+  "version": "0.0.0",
+  "description": "This project contains different APIs for Piranha View",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "Mitul",
+  "license": "BSD-2-Clause",
+  "dependencies": {
+    "express": "~4.13.4",
+    "body-parser": "~1.15.1",
+    "mongoose": "~4.4.17",
+    "validator": "~5.2.0"
+  }
+}
