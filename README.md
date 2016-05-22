@@ -11,7 +11,7 @@ Client is a UI application from where you can test this APIs.
 To test this APIs in client you need to run this server.
 This server requires following things to be installed on your machine
 * Node and npm in order to run this Node server
-* MongoDB database installed and server of mongoDB database has to be running as this application uses MongoDB database.
+* MongoDB database installed and server of mongoDB database has to be running as this application uses MongoDB database server on its default port.
  
 Follow below steps to run this server
 * Clone this repo in your local machine. 
