@@ -17,7 +17,7 @@ Follow below steps to run this server
 * Clone this repo in your local machine. 
 * Using terminal go to the root path of cloned folder.
 * do `npm install` to install all the required packages and node modules
-* do `npm server.js` - this will run your server on localhost port 3000
+* do `npm server.js` - this will run this application server on localhost port 3000
 
 You API server is running and you can access client for testing of this API.
 
