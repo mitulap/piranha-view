@@ -323,9 +323,12 @@ module.exports = function(app){
 								// of the boat and we can update availability of overlapping timeslot while considering overlapping timeslot
 								// of overlapping timeslot for the current timeslot.
 								var tempDate = new Date(doc.start_time);
+								
+								// Variable to set date range in order to find timeSlot in the that range and update them for availability.
+								var HOURS_UNIT = 24;
 
-								var docStartDate = new Date(tempDate.getTime() - (10 * 60 * 60000));
-								var docEndDate = new Date(tempDate.getTime() + ((doc.duration + (10 * 60)) * 60000));
+								var docStartDate = new Date(tempDate.getTime() - (HOURS_UNIT * 60 * 60000));
+								var docEndDate = new Date(tempDate.getTime() + ((doc.duration + (HOURS_UNIT * 60)) * 60000));
 
 								//finding time slot which falls in the above date range to update for availability
 								timeSlot.find({$or: [{start_time : {"$gt": docStartDate, "$lt": docEndDate}}, {end_time : {"$gt": docStartDate, "$lt": docEndDate}}]}, function(err, timeSlotsForUpdate) {
