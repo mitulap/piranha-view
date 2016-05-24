@@ -1,5 +1,5 @@
 # piranha-view
-This is a server for Piranha View application. This project contains APIs which are built using Node.js 
+This is a server for Piranha View application. This project contains APIs which are built using Node.js to support PiranhaBoat client's requests.
 
 ## Client Repo
 https://github.com/gadabout/passport
