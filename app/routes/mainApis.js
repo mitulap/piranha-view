@@ -21,61 +21,68 @@ module.exports = function(app){
 		//API to assign boat to a timeSlot
 		/*	
 			Parameters:
-				timeslot[start_time]
-				Start time of the timeslot, expressed as a Unix timestamp
-				Example: 1406052000
-			timeslot[duration]
-				Length of the timeslots in minutes
-				Example: 120
-			Output:
-				The created timeslot in JSON format, with the fields above, plus a unique ID, a customer count, an availability count, and a list of associated boat IDs
-				On a new timeslot, the availability and customer count will necessarily be 0, and the boats will be an empty list
-				Example: { id: abc123, start_time: 1406052000, duration: 120, availability: 0, customer_count: 0, boats: [] }
+				assignment[timeslot_id]
+					A valid timeslot id
+					Example: abc123
+				assignment[boat_id]
+					A valid boat id
+					Example: def456
+				Output:
+					none
 		*/
 		
-		timeSlot.findOne({ id: req.body.assignment.timeslot_id }, function (err, doc){	  	
+		//validating parameters
 
-		  	if(err) return res.status(500).json(errorResponse(err.errmsg, 500));
+		if((req.body.assignment.timeslot_id == null) || (req.body.assignment.boat_id == null)){
+			//standard response code is 422 but right now I am using 400 as of now.
+			return res.status(400).json(errorResponse("Make sure all required parameter/parameters are included in the request...!", 400));
+		} else {
 
-		  	if(doc == null){
-		  		return res.status(500).json(errorResponse("No Document found for the given timeSlot Id.", 500));
-		  	}
+			timeSlot.findOne({ id: req.body.assignment.timeslot_id }, function (err, doc){	  	
 
-		  	//checks whether the boat is present or not
-		  	for( var i = 0; i < doc.boatsDetails.length; i++){
-		  		if(doc.boatsDetails[i].id === req.body.assignment.boat_id){
-		  			return res.status(200).json({msg:"Boat is already present in the timeslot"});
-		  		}
-		  	}
-			    
-			    //Now checking whether the boat is being used or not
-			    //Getting boat data
-		    boat.findOne({id : req.body.assignment.boat_id}, function(err, boatDoc){
+			  	if(err) return res.status(500).json(errorResponse(err.errmsg, 500));
 
-		    		var lengthOftheResult = utilFunc.isBoatBeingUsedForTheSameTimeInterval(doc.start_time, doc.duration, boatDoc);
+			  	if(doc == null){
+			  		return res.status(500).json(errorResponse("No Document found for the given timeSlot Id.", 500));
+			  	}
 
-		    		//creating a doc for adding a new boat in timeSlot
-				    var boatDetailsData = {
-				    	id : req.body.assignment.boat_id,
-				    	capacity : boatDoc.capacity,
-				    	isBeingUsed : false,
-				    	usedSeats : 0
-				    }
+			  	//checks whether the boat is present or not
+			  	for( var i = 0; i < doc.boatsDetails.length; i++){
+			  		if(doc.boatsDetails[i].id === req.body.assignment.boat_id){
+			  			return res.status(200).json({msg:"Boat is already present in the timeslot"});
+			  		}
+			  	}
+				    
+				    //Now checking whether the boat is being used or not
+				    //Getting boat data
+			    boat.findOne({id : req.body.assignment.boat_id}, function(err, boatDoc){
 
-				    //If the boat is being used for the same time interval in other timeSlot then no need to update timeSlot Availability.
-		    		if(lengthOftheResult > 0){
-		    			//do nothing
-		    		}else{
-		    			if(doc.availability < boatDoc.capacity ) {
-			    			doc.availability = boatDoc.capacity;
+			    		var lengthOftheResult = utilFunc.isBoatBeingUsedForTheSameTimeInterval(doc.start_time, doc.duration, boatDoc);
+
+			    		//creating a doc for adding a new boat in timeSlot
+					    var boatDetailsData = {
+					    	id : req.body.assignment.boat_id,
+					    	capacity : boatDoc.capacity,
+					    	isBeingUsed : false,
+					    	usedSeats : 0
+					    }
+
+					    //If the boat is being used for the same time interval in other timeSlot then no need to update timeSlot Availability.
+			    		if(lengthOftheResult > 0){
+			    			//do nothing
+			    		}else{
+			    			if(doc.availability < boatDoc.capacity ) {
+				    			doc.availability = boatDoc.capacity;
+				    		}
 			    		}
-		    		}
-		    	//Sacing the timeSlot and sending empty response to the client.
-		    	doc.boatsDetails.push(boatDetailsData);
-		    	doc.save();
-		    	return res.status(200).json({});
-		    });
-		});
+			    	//Sacing the timeSlot and sending empty response to the client.
+			    	doc.boatsDetails.push(boatDetailsData);
+			    	doc.save();
+			    	return res.status(200).json({});
+			    });
+			});
+		}
+		
 	});
 
 
@@ -85,21 +92,25 @@ module.exports = function(app){
 			/*			
 				Parameters:
 					booking[timeslot_id]
-					A valid timeslot id
-					Example: abc123
-				booking[size]
-					The size of the booking party
-					Example: 4
-				Output:
-					none
+						A valid timeslot id
+						Example: abc123
+					booking[size]
+						The size of the booking party
+						Example: 4
+					Output:
+						none
 			*/
 
 
-			//This code is in following sections
+		//validating parameters
 
+		if((req.body.booking.timeslot_id == null) || (req.body.booking.size == null)){
+			//standard response code is 422 but right now I am using 400 as of now.
+			return res.status(400).json(errorResponse("Make sure all required parameter/parameters are included in the request...!", 400));
+		} else {
 
 			timeSlot.findOne({ id: req.body.booking.timeslot_id }, function (err, doc){
-				//If booking size is greater than available count for the timeSlot then return error
+			//If booking size is greater than available count for the timeSlot then return error
 
 				if(doc.boatsDetails.length == 0){
 					return res.status(200).json({error:"No Boats Assigned to the timeSlot"});
@@ -371,5 +382,8 @@ module.exports = function(app){
 				}
 
 			});
+
+		}
+	
 	});
 }

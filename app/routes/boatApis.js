@@ -30,21 +30,29 @@ module.exports = function(app){
 			Constraints :
 				boat name should be unique
 		*/
-		var newBoat = new boat({
+
+		//validating parameters
+
+		if((req.body.boat.name == null) || (req.body.boat.capacity == null)){
+			//standard response code is 422 but right now I am using 400 as of now.
+			return res.status(400).json(errorResponse("Make sure all required parameters are included in the request...!", 400));
+		} else {
+
+			var newBoat = new boat({
 			name : req.body.boat.name,
 			capacity : req.body.boat.capacity,
 			availCapacity : req.body.boat.capacity
-		});
+			});
 
-		//saving a boat
-		newBoat.save(function(err){
+			//saving a boat
+			newBoat.save(function(err){
 
-			//If the name is not unique then
-            if(err) return res.status(503).json(errorResponse(err.errmsg, 503));
-            console.log("Boat "+ newBoat.name +" saved successfully");
-            return res.status(200).json({id:newBoat.id, capacity: newBoat.capacity, name: newBoat.name});
-        });
-
+				//If the name is not unique then
+	            if(err) return res.status(503).json(errorResponse(err.errmsg, 503));
+	            console.log("Boat "+ newBoat.name +" saved successfully");
+	            return res.status(200).json({id:newBoat.id, capacity: newBoat.capacity, name: newBoat.name});
+	        });
+		}
 	});
 
 
