@@ -10,9 +10,11 @@
   "author": "Mitul",
   "license": "BSD-2-Clause",
   "dependencies": {
-    "express": "~4.13.4",
+    "async": "^2.0.0-rc.5",
     "body-parser": "~1.15.1",
+    "express": "~4.13.4",
     "mongoose": "~4.4.17",
+    "node-uuid": "^1.4.7",
     "validator": "~5.2.0"
   }
 }
